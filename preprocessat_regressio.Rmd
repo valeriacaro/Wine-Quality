@@ -1,0 +1,507 @@
+---
+title: "Preprocessat i Regressió"
+author: "Valèria Caro i Anna Ramon"
+date: "30/4/2022"
+output: html_document
+---
+
+```{r}
+setwd("~/Dades/Segon/AA/Projecte/Prpjecte3")
+source("auxiliary.R")
+```
+
+# 1. LECTURA DE LES DADES
+```{r}
+data <- read.csv("winequality-white.csv", header = TRUE, sep = ";", dec = ".", na.strings = "unknown")
+dim(data)
+```
+
+Observem que el dataset consta de 4898 observacions explicades per 12 variables diferents.
+
+```{r}
+names(data)
+```
+
+## Dades
+
+Les variables que expliquen les observacions són:
+
+* $\text{fixed.acidity}$: numèrica, àcid tartàric (g/dm^3). 
+
+* $\text{volatile.acidity}$: numèrica, àcid acètic (g/dm^3) - amb nivells massa alts pot donar lloc a gustos de vinagre desagradables.
+
+* $\text{citric.acid}$: numèrica, àcid cítric (g/dm^3) - en petites quantitats por donar frescura i gust al vi.
+
+* $\text{residual.sugar}$: numèrica, (g/dm^3) - la quantitat de sucre que queda després de la parada de la fermentació; és estrany trobar vins amb menys d'1 g/L i vins amb més de 45 g/L es consideren dolços.
+
+* $\text{chlorides}$: numèrica, clorur de sodi (g/dm^3) - quantitat de sal al vi.
+
+* $\text{free.sulfur.dioxide}$: numèrica (mg/dm^3) - la forma lliure de SO2 existeix en equilibri entre el SO2 molecular (com a gas dissolt) i l'ió bisulfit; impedeix el creixement de microbis i l'oxidació del vi.
+
+* $\text{total.sulfur.dioxide}$: numèrica (mg/dm^3) - quantitat de formes lliures i lligades de SO2; en concentracions baixes, el SO2 és majoritàriament indetectable al vi, però a concentracions de SO2 lliure superiors a 50 ppm, el SO2 es fa evident en el nas i el gust del vi.
+
+* $\text{density}$: numèrica (g/cm^3) - la densitat del vi és propera a la de l'aigua en funció del percentatge d'alcohol i sucre.
+
+* $pH$: numèrica (del 0 al 14) - descriu com d'àcid o bàsic és un vi en una escala de 0 (molt àcid) a 14 (molt bàsic); la majoria dels vins es troben entre 3 i 4 a l'escala de pH.
+
+* $\text{sulphates}$: numèrica, sulfat de potassi (g/dm^3) - un additiu del vi que pot contribuir als nivells de diòxid de sofre gasós (SO2), que actua com a antimicrobià i antioxidant.
+
+* $\text{alcohol}$: numèrica, % per volum - percentatge d'alcohol al vi.
+
+* $\text{quality}$: categòrica, puntuació de 0 a 10. Variable de sortida.
+
+# 2. ANÀLISI DE LES DADES
+
+Fem un estudi general de les dades:
+
+```{r}
+summary(data)
+```
+
+S'observen els següents trets:
+
+* Sembla que hi ha un _outlier_ perquè hi ha una observació que té un valor de 65.800 g/dm^3 de sucre residual quan la mitjana per a aquesta variable és 6.391 g/dm^3.
+
+* El mateix passa quan ens fixem en la variable $\text{free.sulfur.dioxide}$: el valor màxim és 289 i el tercer quartil és 46. Sembla un valor màxim massa alt.
+
+# 3. TRACTAMENT DE VALORS ATÍPICS
+
+Fem l'histograma de totes les variables:
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$fixed.acidity)
+qqnorm(data$fixed.acidity); qqline(data$fixed.acidity,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+```{r}
+data$fixed.acidity[data$fixed.acidity > 10] = NA
+summary(data$fixed.acidity)
+```
+
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$volatile.acidity)
+qqnorm(data$volatile.acidity); qqline(data$volatile.acidity,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+
+```{r}
+data$volatile.acidity[data$volatile.acidity > 0.8] = NA
+summary(data$volatile.acidity)
+```
+
+
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$citric.acid)
+qqnorm(data$citric.acid); qqline(data$citric.acid,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+
+Treiem els q es passen de 1
+
+```{r}
+data$citric.acid[data$citric.acid > 1] = NA
+data$citric.acid[data$citric.acid < 0.1] = NA
+summary(data$citric.acid)
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$residual.sugar)
+qqnorm(data$residual.sugar); qqline(data$residual.sugar,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+Observem que el valor de residual.sugar que creiem que era un outlier realment ho és. El treiem:
+
+```{r}
+data$residual.sugar[data$residual.sugar >= 30] = NA
+summary(data$residual.sugar)
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$chlorides)
+qqnorm(data$chlorides); qqline(data$chlorides,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+```{r}
+data$chlorides[data$chlorides > 0.25] = NA
+summary(data$chlorides)
+```
+
+
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$free.sulfur.dioxide)
+qqnorm(data$free.sulfur.dioxide); qqline(data$free.sulfur.dioxide,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+Observem que el valor que havíem trobat és un outlier. El treiem:
+```{r}
+data$free.sulfur.dioxide[data$free.sulfur.dioxide >= 200] = NA
+summary(data$free.sulfur.dioxide)
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$total.sulfur.dioxide)
+qqnorm(data$total.sulfur.dioxide); qqline(data$total.sulfur.dioxide,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+```{r}
+data$total.sulfur.dioxide[data$total.sulfur.dioxide > 300] = NA
+summary(data$total.sulfur.dioxide)
+```
+
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$density)
+qqnorm(data$density); qqline(data$density,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$pH)
+qqnorm(data$pH); qqline(data$pH,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$sulphates)
+qqnorm(data$sulphates); qqline(data$sulphates,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+```{r}
+data$sulphates[data$sulphates > 1] = NA
+summary(data$sulphates)
+```
+
+```{r}
+data = na.omit(data)
+summary(data)
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(data$alcohol)
+qqnorm(data$alcohol); qqline(data$alcohol,col=2,lwd=2)
+par(mfrow=c(1,1))
+```
+
+# 4. GAUSSIANITAT I TRANSFORMACIONS 
+
+```{r}
+library(MASS)
+library(forecast)
+
+par(mfrow=c(1,3))
+
+hist(data$fixed.acidity, main="Look at that ...")
+
+bx = boxcox(data$fixed.acidity ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+fixed.acidity.transf = (data$fixed.acidity^lambda)/lambda
+
+hist(fixed.acidity.transf, main="Look at that now!")
+
+hist(data$volatile.acidity, main="Look at that ...")
+
+bx = boxcox(data$volatile.acidity ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+volatile.acidity.transf = (data$volatile.acidity^lambda)/lambda
+
+hist(volatile.acidity.transf, main="Look at that now!")
+
+hist(data$citric.acid, main="Look at that ...")
+
+bx = boxcox(data$citric.acid ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+citric.acid.transf = (data$citric.acid^lambda)/lambda
+
+hist(citric.acid.transf, main="Look at that now!")
+
+hist(data$residual.sugar, main="Look at that ...")
+
+bx = boxcox(data$residual.sugar ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+residual.sugar.transf = (data$residual.sugar^lambda)/lambda
+
+hist(residual.sugar.transf, main="Look at that now!")
+
+hist(data$chlorides, main="Look at that ...")
+
+bx = boxcox(data$chlorides ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+chlorides.transf = (data$chlorides^lambda)/lambda
+
+hist(chlorides.transf, main="Look at that now!")
+
+hist(data$free.sulfur.dioxide, main="Look at that ...")
+
+bx = boxcox(data$free.sulfur.dioxide ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+free.sulfur.dioxide.transf = (data$free.sulfur.dioxide^lambda)/lambda
+
+hist(free.sulfur.dioxide.transf, main="Look at that now!")
+
+hist(data$total.sulfur.dioxide, main="Look at that ...")
+
+bx = boxcox(data$total.sulfur.dioxide ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+total.sulfur.dioxide.transf = (data$total.sulfur.dioxide^lambda)/lambda
+
+hist(total.sulfur.dioxide.transf, main="Look at that now!")
+
+hist(data$density, main="Look at that ...")
+
+bx = boxcox(data$density ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+density.transf = (data$density^lambda)/lambda
+
+hist(density.transf, main="Look at that now!")
+
+hist(data$pH, main="Look at that ...")
+
+bx = boxcox(data$pH ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+pH.transf = (data$pH^lambda)/lambda
+
+hist(pH.transf, main="Look at that now!")
+
+hist(data$sulphates, main="Look at that ...")
+
+bx = boxcox(data$sulphates ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+sulphates.transf = (data$sulphates^lambda)/lambda
+
+hist(sulphates.transf, main="Look at that now!")
+
+hist(data$alcohol, main="Look at that ...")
+
+bx = boxcox(data$alcohol ~ . - data$quality, data = data)
+
+lambda = bx$x[which.max(bx$y)]
+
+print(lambda)
+
+alcohol.transf = (data$alcohol^lambda)/lambda
+
+hist(alcohol.transf, main="Look at that now!")
+```
+
+```{r}
+for (i in 0:10) 
+  { plot(density(data[,i+1]), xlab="", main=names(data)[i]) }
+```
+
+
+```{r}
+data_new = data.frame(fixed.acidity.transf, volatile.acidity.transf, citric.acid.transf, residual.sugar.transf, chlorides.transf, free.sulfur.dioxide.transf, total.sulfur.dioxide.transf, pH.transf, sulphates.transf, alcohol.transf)
+summary(data_new)
+```
+
+# 5. RESAMPLING
+
+La variable qualitat pot adquirir valors entre 0 i 10. Ens adonem que realment només pren valors entre 3 i 9. Majoritariament els valors se centren entre 5, 6 i 7 --> predeterminar només 3 classes?
+45% instàncies pertanyen nivell 6
+30% instàncies pertanyen nivell 5
+18% instàncies pertanyen nivell 7 DADES DESBALANCEJADES
+
+```{r}
+library(caTools)
+
+#escalat de les dades per evitar els canvis de dimensio i fer una comparacio directa entre variables
+
+Wine.std <- data.frame(cbind(scale(data_new[,1:10]),quality = data$quality))
+
+write.csv(Wine.std, "~/Dades/Segon/AA/Projecte/Prpjecte3/wine.csv")
+
+summary(Wine.std)
+
+split = sample.split(Wine.std$quality, SplitRatio = 0.7)
+
+training_set = subset(Wine.std, split == TRUE)
+
+test_set = subset(Wine.std, split == FALSE)
+
+table(training_set$quality)
+```
+
+# 6. MODEL LINEAL
+
+```{r}
+(model.linreg_sign <- lm(quality ~ fixed.acidity.transf + volatile.acidity.transf + 
+    residual.sugar.transf + chlorides.transf + free.sulfur.dioxide.transf + 
+    total.sulfur.dioxide.transf + sulphates.transf + alcohol.transf, 
+    data = training_set))
+```
+
+
+# 7. MODEL RIDGE 
+
+```{r}
+library(MASS)
+model.ridge <- lm.ridge(quality ~ ., data=training_set, lambda = seq(0,20,0.1))
+
+plot(seq(0,20,0.1), model.ridge$GCV, main="GCV of Ridge Regression", type="l",
+     xlab=expression(lambda), ylab="GCV")
+
+# The optimal lambda is given by
+lambda.ridge <- seq(0,20,0.1)[which.min(model.ridge$GCV)]
+abline (v=lambda.ridge,lty=2)
+```
+
+```{r}
+colors <- rainbow(10)
+matplot (seq(0,20,0.1), coef(model.ridge)[,-1], xlim=c(0,21), type="l",xlab=expression(lambda),
+        ylab=expression(hat(beta)), col=colors, lty=1, lwd=2, main="Ridge coefficients")
+abline (v=lambda.ridge, lty=2)
+abline (h=0, lty=2)
+arrows (5.5,0.45,5,0.35, length = 0.15)
+text (rep(10, 9), coef(model.ridge)[length(seq(0,20,0.1)),-1], colnames(training_set)[-9], pos=4, col=colors)
+text(18, 0.4, adj=c(0,-1), "best lambda", col="black", cex=0.75)
+```
+
+# 8. MODEL LASSO
+
+```{r}
+library(Matrix)
+library(glmnet)
+```
+
+```{r}
+t <- as.numeric(training_set$quality)
+x <- as.matrix(training_set[,1:10])
+
+model.lasso <- cv.glmnet(x, t, nfolds = 10)
+plot(model.lasso)
+```
+```{r}
+coef(model.lasso)
+```
+
+```{r}
+(lambda.lasso <- model.lasso$lambda.min)
+```
+
+# 9. ERRORS
+
+
+```{r}
+data <- training_set # by just in case
+
+K <- 10; TIMES <- 10   # 10x10-cv
+
+res <- replicate (TIMES, {
+  # shuffle the data
+  data <- data[sample(nrow(data)),]
+  # Create K equally sized folds
+  folds <- cut (1:nrow(data), breaks=K, labels=FALSE)
+  sse.standard <- sse.ridge <- sse.lasso <- 0
+
+  # Perform 10 fold cross validation
+  for (i in 1:K)
+  {
+    valid.indexes <- which (folds==i, arr.ind=TRUE)
+    valid.data <- data[valid.indexes, ]
+    train.data <- data[-valid.indexes, ]
+
+    #standard
+    model.standard <- lm (quality ~ ., data=train.data)
+    beta.standard <- coef(model.standard)
+    preds.standard <- beta.standard[1] + as.matrix(valid.data[,1:10]) %*% beta.standard[2:11]
+    sse.standard <- sse.standard + crossprod(valid.data[,'quality'] - preds.standard)
+
+    #ridge
+    model.ridgereg <- lm.ridge (quality ~ ., data=train.data, lambda = lambda.ridge)
+    beta.ridgereg <- coef (model.ridgereg)
+    preds.ridgereg <- beta.ridgereg[1] + as.matrix(valid.data[,1:10]) %*% beta.ridgereg[2:11]
+    sse.ridge <- sse.ridge + crossprod(valid.data[,'quality'] - preds.ridgereg)
+
+    #lasso
+    model.lasso <- glmnet(as.matrix(train.data[,1:10]), as.numeric(train.data[,'quality']), lambda=lambda.lasso)
+    preds.lasso <- predict(model.lasso, newx = as.matrix(valid.data[,1:10]))
+    sse.lasso <- sse.lasso + crossprod(valid.data[,'quality'] - preds.lasso)
+  }
+  c(sse.standard, sse.ridge, sse.lasso)
+})
+
+normalization <- (nrow(data)-1)*var(data$quality) # denominator of NRMSE
+nmse.crossval <- rowMeans(res) / normalization
+
+paste("cross-validation mean error for standard linear regression is", nmse.crossval[1])
+```
+```{r}
+paste("cross-validation mean error for ridge linear regression is", nmse.crossval[2], "with lambda =", lambda.ridge)
+```
+```{r}
+paste("cross-validation mean error for lasso linear regression is", nmse.crossval[3], "with lambda =", lambda.lasso)
+```
+
+# 10. ENTRENAMENT MODEL FINAL
+
+```{r}
+model.ridgereg.FINAL <- lm.ridge(quality ~ ., data=training_set, lambda = lambda.ridge)
+(beta.ridgereg.FINAL <- coef(model.ridgereg.FINAL))
+normalization.test <- (length(test_set$quality)-1)*var(test_set$quality)
+
+sse <- crossprod (test_set$quality - beta.ridgereg.FINAL[1] - as.matrix(test_set[,1:10]) %*% beta.ridgereg.FINAL[2:11])
+(NMSE.ridge <- sse/normalization.test)
+```
+
